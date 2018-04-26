@@ -1,0 +1,14 @@
+<resources>
+    <declare-styleable name="WheelView">
+        <attr name="gravity">
+            <enum name="left" value="17"/>
+            <enum name="right" value="5"/>
+            <enum name="center" value="3"/>
+        </attr>
+        <attr name="linespaceingMultiplier" format="float"/>
+        <attr name="selected_in_text_color" format="color"/>
+        <attr name="selected_out_text_color" format="color"/>
+        <attr name="selected_divider_line" format="color"/>
+        <attr name="exampleDrawable" format="color|reference"/>
+    </declare-styleable>
+</resources>
