@@ -1,15 +1,18 @@
 package com.ytl.customview.widget.view;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.nfc.Tag;
 import android.os.Handler;
 import android.text.TextPaint;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.View;
@@ -28,6 +31,7 @@ public class WheelView extends View {
     public boolean mIsDebug = true;
 
     private static final String TAG = WheelView.class.getSimpleName();
+    private float mTextSize;
 
     public enum DividerType{
         FILL,WRAP
@@ -50,6 +54,7 @@ public class WheelView extends View {
 
     private int mTextselectedInColor;
     private int mTextSelectedOutColor;
+    private int mDividerLineColor;
     private float mDividerLineMultiplier = 1.6F;
     public  boolean mIsLoop = true;
 
@@ -86,14 +91,17 @@ public class WheelView extends View {
     private float mPreviousY = 0;
     private long mStartTimer = 0;
 
-
+    //change the speed by modify the param
     private static final int mVelocity_Fling_Y = 5;
     private int mWidthMeasureSpec;
 
-    private int mDrawCenterTextStart = 0;
-    private int mDrawOutTextStart = 0;
+    private int mDrawCenterTextStart = 0;//center content draw start position
+    private int mDrawOutTextStart = 0;//divider line out content draw start position
 
-    private static final float SCALECONTENT = 0.8F;
+    private static final float SCALECONTENT = 0.8F;//the out of divider line content height
+    private float CENTER_CONTENT_OFFSET;//offset
+
+    private final float DEFAULT_TEXT_TRAGET_SKEWX = 0.5f;
 
 
 
@@ -118,6 +126,11 @@ public class WheelView extends View {
 
     private void init(AttributeSet attrs, int defStyle) {
         // Load attributes
+        Resources resources = getResources();
+        DisplayMetrics displayMetrics = resources.getDisplayMetrics();
+        float density = displayMetrics.density;
+        setCenterContentOffsetByDensity(density);
+
         final TypedArray a = getContext().obtainStyledAttributes(
                 attrs, R.styleable.WheelView, defStyle, 0);
 
@@ -126,6 +139,8 @@ public class WheelView extends View {
         mTextSelectedOutColor = a.getColor(
                 R.styleable.WheelView_selected_out_text_color,
                 0xFFa8a8a8);
+        mDividerLineColor = a.getColor(R.styleable.WheelView_selected_divider_line,
+                0xFFd5d5d5);
         mDividerLineMultiplier = a.getFloat(R.styleable.WheelView_linespaceingMultiplier,
                 mDividerLineMultiplier);
 
@@ -141,21 +156,47 @@ public class WheelView extends View {
 
         a.recycle();
 
+        setLineSpacingMultiplier();
+        initWheelView(getContext());
+
+
+        // Update TextPaint and text measurements from attributes
+        invalidateTextPaintAndMeasurements();
+    }
+
+    private void initWheelView(Context context){
+        this.mContext = context;
+        mHandler = new Handler();//TODO
+        mGestureDetector = new GestureDetector(context,new GestureDetector.SimpleOnGestureListener());
+        mGestureDetector.setIsLongpressEnabled(false);
+        mIsLoop = true;
+
+        mTotalScollY = 0;
+        mSelectedPosition = -1;
+        initPaints();
+
+    }
+
+    private void initPaints(){
         // Set up a default TextPaint object
         mTextPaintIn = new TextPaint();
         mTextPaintIn.setFlags(Paint.ANTI_ALIAS_FLAG);
         mTextPaintIn.setTextAlign(Paint.Align.LEFT);
+        mTextPaintIn.setColor(mTextselectedInColor);
+        mTextPaintIn.setTextSize(mTextSize);
 
         mTextPaintOut = new TextPaint();
         mTextPaintOut.setFlags(Paint.ANTI_ALIAS_FLAG);
+        mTextPaintOut.setColor(mTextSelectedOutColor);
         mTextPaintOut.setTextAlign(Paint.Align.LEFT);
+        mTextPaintOut.setTextSize(mTextSize);
 
         mPaintIndicator = new Paint();
         mPaintIndicator.setFlags(Paint.ANTI_ALIAS_FLAG);
-        mPaintIndicator.setStrokeWidth(2);
+        mPaintIndicator.setColor(mDividerLineColor);
 
-        // Update TextPaint and text measurements from attributes
-        invalidateTextPaintAndMeasurements();
+        setLayerType(LAYER_TYPE_SOFTWARE,null);
+
     }
 
     private void invalidateTextPaintAndMeasurements() {
@@ -165,6 +206,47 @@ public class WheelView extends View {
 
         Paint.FontMetrics fontMetrics = mTextPaint.getFontMetrics();
         mTextHeight = fontMetrics.bottom;
+    }
+
+    private void setCenterContentOffsetByDensity(float density) {
+        if (density < 1) {
+            CENTER_CONTENT_OFFSET = 2.4f;
+        } else if (density>=1 && density<1.5) {
+            CENTER_CONTENT_OFFSET = 3.6f;
+        } else if (density>=1.5 && density<2) {
+            CENTER_CONTENT_OFFSET = 4.5f;
+        } else if (density>=2 && density< 3) {
+            CENTER_CONTENT_OFFSET = 6.0f;
+        } else if (density >= 3) {
+            CENTER_CONTENT_OFFSET = density * 2.5F;
+        }
+
+    }
+
+    private void setLineSpacingMultiplier(){
+        if (mDividerLineMultiplier < 1.0f) {
+            mDividerLineMultiplier = 1.0f;
+        } else if (mDividerLineMultiplier >4.0f) {
+            mDividerLineMultiplier = 4.0f;
+        }
+    }
+
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    private void remeasure(){
+
+    }
+
+    private void measureTextWidthAndHeight(){
+        Rect rect = new Rect();
+        int length;
+        for (int i =0; i< length; i++ ) {
+            String text = getcontentText();
+        }
     }
 
     @Override
