@@ -7,8 +7,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
-import android.nfc.Tag;
 import android.os.Handler;
 import android.text.TextPaint;
 import android.util.AttributeSet;
@@ -18,7 +18,13 @@ import android.view.Gravity;
 import android.view.View;
 
 import com.ytl.customview.R;
+import com.ytl.customview.widget.adapter.IWheelViewAdapter;
+import com.ytl.customview.widget.interfaces.IWheelViewDataListener;
+import com.ytl.customview.widget.listener.OnItemSelectedListenter;
+import com.ytl.customview.widget.listener.WheelViewGestrueListener;
+import com.ytl.customview.widget.timer.MessageHandler;
 
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,8 +51,10 @@ public class WheelView extends View {
 
     private Context mContext;
     private Handler mHandler;
+    private IWheelViewAdapter mAdapter;
 
     public GestureDetector mGestureDetector;
+    private OnItemSelectedListenter mOnItemSelectedListenter;
 
     public ScheduledExecutorService mExecutorService = Executors.newSingleThreadScheduledExecutor();
     public Future<?> mFuture ;
@@ -68,9 +76,9 @@ public class WheelView extends View {
     private TextPaint mTextPaintOut;
     private Paint mPaintIndicator;
 
-    private int mFirstLineY;
-    private int mSecondLineY;
-    private int mLabelTextY;
+    private float mFirstLineY;
+    private float mSecondLineY;
+    private float mLabelTextY;
 
     private int mTotalScollY;
     private int initPosition;
@@ -108,6 +116,12 @@ public class WheelView extends View {
 
     private float mTextWidth;
     private float mTextHeight;
+
+    private float mMaxTextWidth = 0;
+    private float mMaxTextHeight = 0;
+    private float mItemHeight;
+    private int mTextOffset;
+    private Typeface mTypeface = Typeface.MONOSPACE;
 
     public WheelView(Context context) {
         super(context);
@@ -159,15 +173,18 @@ public class WheelView extends View {
         setLineSpacingMultiplier();
         initWheelView(getContext());
 
-
         // Update TextPaint and text measurements from attributes
         invalidateTextPaintAndMeasurements();
     }
 
+
+    /*
+    * init the wheel view
+    * */
     private void initWheelView(Context context){
         this.mContext = context;
-        mHandler = new Handler();//TODO
-        mGestureDetector = new GestureDetector(context,new GestureDetector.SimpleOnGestureListener());
+        mHandler = new MessageHandler(this);//TODO
+        mGestureDetector = new GestureDetector(context,new WheelViewGestrueListener(this));
         mGestureDetector.setIsLongpressEnabled(false);
         mIsLoop = true;
 
@@ -177,6 +194,10 @@ public class WheelView extends View {
 
     }
 
+
+    /*
+    * init the many paints
+    * */
     private void initPaints(){
         // Set up a default TextPaint object
         mTextPaintIn = new TextPaint();
@@ -200,14 +221,23 @@ public class WheelView extends View {
     }
 
     private void invalidateTextPaintAndMeasurements() {
-        mTextPaint.setTextSize(mExampleDimension);
-        mTextPaint.setColor(mExampleColor);
-        mTextWidth = mTextPaint.measureText(mExampleString);
+        mTextPaintIn.setTextSize(mTextSize);
+        mTextPaintIn.setColor(mTextselectedInColor);
+        mTextWidth = mTextPaintIn.measureText(mExampleString);
 
-        Paint.FontMetrics fontMetrics = mTextPaint.getFontMetrics();
+        Paint.FontMetrics fontMetrics = mTextPaintIn.getFontMetrics();
         mTextHeight = fontMetrics.bottom;
+
+        mTextPaintOut.setTextSize(mTextSize);
+        mTextPaintOut.setColor(mTextSelectedOutColor);
+
     }
 
+
+    /*
+    *
+    * set the offset by different device
+    * */
     private void setCenterContentOffsetByDensity(float density) {
         if (density < 1) {
             CENTER_CONTENT_OFFSET = 2.4f;
@@ -223,6 +253,11 @@ public class WheelView extends View {
 
     }
 
+
+    /*
+    * set the Line space distance
+    *
+    * */
     private void setLineSpacingMultiplier(){
         if (mDividerLineMultiplier < 1.0f) {
             mDividerLineMultiplier = 1.0f;
@@ -235,17 +270,135 @@ public class WheelView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int modeWidth = MeasureSpec.getMode(widthMeasureSpec);
+        int modeHeight = MeasureSpec.getMode(heightMeasureSpec);
+
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+
+        remeasure();
+        mWheelViewWidth += getPaddingLeft() + getPaddingRight();
+        mWheelViewHeight += getPaddingBottom() + getPaddingTop();
+        mWheelViewWidth = measureSize(modeWidth,widthSize,mWheelViewHeight);
+        mWheelViewHeight = measureSize(modeHeight,heightSize,mWheelViewHeight);
+        setMeasuredDimension(mWheelViewWidth,mWheelViewHeight);
     }
 
+
+    /*
+    * measure the view width and height
+    *
+    * */
     private void remeasure(){
+        if (mAdapter == null) {
+            return;
+        }
+
+        measureTextWidthAndHeight();
+
+        int halfcircumference = (int) (mItemHeight * (mVisibleItemCount - 1));
+        mWheelViewHeight = (int) (halfcircumference *2 / Math.PI);
+        mRadius = (int) (halfcircumference/Math.PI);
+
+        //计算两条横线 和 选中项画笔的基线Y位置
+        mFirstLineY = (mWheelViewHeight - mItemHeight) / 2.0F;
+        mSecondLineY = (mWheelViewHeight + mItemHeight) / 2.0F;
+        mLabelTextY = mSecondLineY - (mItemHeight - mMaxTextHeight) / 2.0F - CENTER_CONTENT_OFFSET;
+
+        if (mSelectedPosition == -1) {
+            if (mIsLoop) {
+                mSelectedPosition = (mAdapter.getItemCount()+1) / 2;
+            } else {
+                mSelectedPosition = 0;
+            }
+        }
+
+        mPreCurrentPosition = mSelectedPosition;
 
     }
 
+    /*
+    * calpulate the width and height by content
+    *
+    * */
     private void measureTextWidthAndHeight(){
         Rect rect = new Rect();
-        int length;
+        int length = mAdapter.getItemCount();
         for (int i =0; i< length; i++ ) {
-            String text = getcontentText();
+            String text = getContentText(mAdapter.getItem(i));
+            mTextPaintIn.getTextBounds(text,0,text.length(),rect);
+
+            int textWidth = rect.width();
+            if (textWidth > mMaxTextWidth) {
+                mMaxTextWidth = textWidth;
+            }
+            mTextPaintIn.getTextBounds("\\u661F\\u671F",0,2,rect);
+
+            int textHeight = rect.height();
+            if (textHeight > mMaxTextHeight) {
+                mMaxTextHeight = textHeight+2;
+            }
+        }
+
+        mItemHeight = mDividerLineMultiplier * mMaxTextHeight;
+    }
+
+
+    /*
+    * measure size of wheelView by mode
+    *
+    * */
+    private int measureSize(int mode,int exceptSize,int resultSize){
+        int measureSize = 0;
+
+        if (mode == MeasureSpec.EXACTLY) {
+            measureSize = exceptSize;
+        }else if (mode == MeasureSpec.AT_MOST) {
+            measureSize = Math.min(exceptSize,resultSize);
+        } else {
+            measureSize = resultSize;
+        }
+
+        return measureSize;
+
+    }
+
+
+    /*
+    * get the text by input the item info
+    *
+    * */
+    private String getContentText(Object item){
+        if (item == null) {
+            return "";
+        } else if (item instanceof IWheelViewDataListener) {
+            return ((IWheelViewDataListener) item).getSelectedData();
+        }else if (item instanceof Integer) {
+            return String.format(Locale.getDefault(), "%02d", (int) item);
+        }
+
+        return item.toString();
+    }
+
+
+    public void smoothScroll(ActionEvent actionEvent){
+        cancelFuture();
+        if (actionEvent== ActionEvent.FLING || actionEvent == ActionEvent.DRAGGLE) {
+            mOffset =  (int) ((mTotalScollY % mItemHeight + mItemHeight) % mItemHeight);
+            if (mOffset > mItemHeight / 2.0F) {
+                mOffset = (int) (mItemHeight - mOffset);
+            } else {
+                mOffset = -mOffset;
+            }
+        }
+
+    }
+
+
+    public void cancelFuture(){
+        if (mFuture != null && !mFuture.isCancelled()) {
+            mFuture.cancel(true);
+            mFuture = null;
         }
     }
 
@@ -267,7 +420,7 @@ public class WheelView extends View {
         canvas.drawText(mExampleString,
                 paddingLeft + (contentWidth - mTextWidth) / 2,
                 paddingTop + (contentHeight + mTextHeight) / 2,
-                mTextPaint);
+                mTextPaintIn);
 
         // Draw the example drawable on top of the text.
         if (mExampleDrawable != null) {
