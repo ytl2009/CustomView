@@ -9,5 +9,5 @@ package com.ytl.customview.widget.listener;
 
 
 public interface OnItemSelectedListenter {
-    void onIteeSelected(int position);
+    void onItemSelected(int position);
 }

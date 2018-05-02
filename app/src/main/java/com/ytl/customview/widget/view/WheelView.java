@@ -22,12 +22,15 @@ import com.ytl.customview.widget.adapter.IWheelViewAdapter;
 import com.ytl.customview.widget.interfaces.IWheelViewDataListener;
 import com.ytl.customview.widget.listener.OnItemSelectedListenter;
 import com.ytl.customview.widget.listener.WheelViewGestrueListener;
+import com.ytl.customview.widget.timer.InertialTimerTask;
 import com.ytl.customview.widget.timer.MessageHandler;
+import com.ytl.customview.widget.timer.SmoothScrollTask;
 
 import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * TODO: document your custom view class.
@@ -296,9 +299,9 @@ public class WheelView extends View {
 
         measureTextWidthAndHeight();
 
-        int halfcircumference = (int) (mItemHeight * (mVisibleItemCount - 1));
-        mWheelViewHeight = (int) (halfcircumference *2 / Math.PI);
-        mRadius = (int) (halfcircumference/Math.PI);
+        int halfCircumference = (int) (mItemHeight * (mVisibleItemCount - 1));
+        mWheelViewHeight = (int) (halfCircumference *2 / Math.PI);
+        mRadius = (int) (halfCircumference/Math.PI);
 
         //计算两条横线 和 选中项画笔的基线Y位置
         mFirstLineY = (mWheelViewHeight - mItemHeight) / 2.0F;
@@ -392,6 +395,80 @@ public class WheelView extends View {
             }
         }
 
+        mFuture = mExecutorService.scheduleWithFixedDelay(new SmoothScrollTask(this,mOffset),
+                0,10, TimeUnit.MILLISECONDS);
+
+    }
+
+
+    public final void scrollBy(float velocityY){
+        cancelFuture();
+        mFuture = mExecutorService.scheduleWithFixedDelay(new InertialTimerTask(this,velocityY),
+                0,10,TimeUnit.MILLISECONDS);
+
+    }
+
+    //if loop is true set cycle scroll or not
+    public void setLoop(boolean loop) {
+        mIsLoop = loop;
+    }
+
+    // set typeface of font
+    public void setTypeface(Typeface typeface) {
+        mTypeface = typeface;
+        mTextPaintIn.setTypeface(mTypeface);
+        mPaintIndicator.setTypeface(mTypeface);
+    }
+
+    public void setTextSize(float textSize) {
+        if (textSize > 0.0F) {
+            mTextSize = mContext.getResources().getDisplayMetrics().density * textSize;
+            mTextPaintIn.setTextSize(mTextSize);
+            mTextPaintOut.setTextSize(mTextSize);
+        }
+
+    }
+
+
+    public void setSelectedPosition(int selectedPosition) {
+        mSelectedPosition = selectedPosition;
+        initPosition = selectedPosition;
+        mTotalScollY = 0;
+        invalidate();
+    }
+
+
+    public void setOnItemSelectedListenter(OnItemSelectedListenter onItemSelectedListenter) {
+        mOnItemSelectedListenter = onItemSelectedListenter;
+    }
+
+
+    public void setAdapter(IWheelViewAdapter adapter) {
+        mAdapter = adapter;
+        remeasure();
+        invalidate();
+    }
+
+
+    public IWheelViewAdapter getAdapter() {
+        return mAdapter;
+    }
+
+
+    public int getSelectedPosition() {
+        return mSelectedPosition;
+    }
+
+
+    public void onItemSelected() {
+        if (mOnItemSelectedListenter != null) {
+            postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mOnItemSelectedListenter.onItemSelected(getSelectedPosition());
+                }
+            },100);
+        }
     }
 
 
@@ -405,8 +482,40 @@ public class WheelView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        if (mAdapter == null) {
+            return;
+        }
 
-        // TODO: consider storing these as member variables to reduce
+        initPosition = Math.min(Math.max(0,initPosition),mAdapter.getItemCount() - 1);
+
+        Object visibles[] = new Object[mVisibleItemCount];
+
+        mChangedOffset = (int) (mTotalScollY / mItemHeight);
+
+        try {
+            mPreCurrentPosition = initPosition + mChangedOffset % mAdapter.getItemCount();
+        } catch (ArithmeticException e) {
+
+        }
+
+        if (!mIsLoop) {
+            if (mPreCurrentPosition < 0) {
+                mPreCurrentPosition = 0;
+            }
+            if (mPreCurrentPosition > mAdapter.getItemCount() - 1) {
+                mPreCurrentPosition = mAdapter.getItemCount() - 1;
+            }
+        }else {
+            if (mPreCurrentPosition < 0) {
+                mPreCurrentPosition = mPreCurrentPosition + mAdapter.getItemCount();
+            }
+            if (mPreCurrentPosition > mAdapter.getItemCount() -1) {
+                mPreCurrentPosition = mPreCurrentPosition - mAdapter.getItemCount();
+            }
+        }
+
+        float itemOffsetHeight = mTotalScollY % mItemHeight;
+
         // allocations per draw cycle.
         int paddingLeft = getPaddingLeft();
         int paddingTop = getPaddingTop();
