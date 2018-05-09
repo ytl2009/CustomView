@@ -50,6 +50,8 @@ public class WheelView extends View {
         CLICK,FLING,DRAGGLE
     }
 
+    private DividerType mDividerType;
+
     private String mExampleString = "\u661F\u671F";
 
     private Context mContext;
@@ -61,6 +63,9 @@ public class WheelView extends View {
 
     public ScheduledExecutorService mExecutorService = Executors.newSingleThreadScheduledExecutor();
     public Future<?> mFuture ;
+
+    public boolean mIsOptions = true;
+    public boolean mIsCenterLabel = true;
 
 
     private int mTextselectedInColor;
@@ -75,31 +80,51 @@ public class WheelView extends View {
     private float mExampleDimension = 0; // TODO: use a default from R.dimen...
     private Drawable mExampleDrawable;
 
+    private String mLabel;// unit text of item selected
+
+    // the selected text paint
     private TextPaint mTextPaintIn;
+    // the out of text paint
     private TextPaint mTextPaintOut;
+    // the divider line paint
     private Paint mPaintIndicator;
 
+    //the first line ox of y
     private float mFirstLineY;
+    //the second line ox of y
     private float mSecondLineY;
+    //label position by draw
     private float mLabelTextY;
 
+    // the total scroll y
     private int mTotalScollY;
+    // the init position
     private int initPosition;
 
+    //the selected position of item
     private int mSelectedPosition;
+    // the pre-selected of item position
     private int mPreCurrentPosition;
 
+    // the change of position
     private int mChangedOffset;
 
+    // the visible of item count
     private int mVisibleItemCount = 11;
 
+    // the wheelview of height
     private int mWheelViewHeight;
+    // the wheelview of width
     private int mWheelViewWidth;
 
+    // the wheelview radius
     private int mRadius;
 
+    // the offset of selected item
     private int mOffset = 0;
+    //the pre-item of y
     private float mPreviousY = 0;
+    //
     private long mStartTimer = 0;
 
     //change the speed by modify the param
@@ -114,16 +139,20 @@ public class WheelView extends View {
 
     private final float DEFAULT_TEXT_TRAGET_SKEWX = 0.5f;
 
-
-
-
+    //the width of show text
     private float mTextWidth;
+    // the height of show text
     private float mTextHeight;
 
+    // the max width of text
     private float mMaxTextWidth = 0;
+    // the max height of text
     private float mMaxTextHeight = 0;
+    // the caculate of item height
     private float mItemHeight;
+    // the text offset
     private int mTextOffset;
+    // set font type face
     private Typeface mTypeface = Typeface.MONOSPACE;
 
     public WheelView(Context context) {
@@ -407,6 +436,75 @@ public class WheelView extends View {
                 0,10,TimeUnit.MILLISECONDS);
 
     }
+
+
+
+
+    public int getItemCount() {
+        return mAdapter==null ? 0 : mAdapter.getItemCount();
+    }
+
+
+    public void setLabel(String label) {
+        this.mLabel = label;
+    }
+
+
+    public void setIsCenterLabel(boolean isCenterLabel) {
+         this.mIsCenterLabel = isCenterLabel;
+    }
+
+
+    public void setGravity(int gravity) {
+        this.mGravity = gravity;
+    }
+
+    public int getTextWidth(Paint paint,String text) {
+
+        int width = 0;
+        if (text != null && text.length()>0) {
+            int length = text.length();
+            float [] widths = new float[length];
+            paint.getTextWidths(text,widths);
+            for (int i=0;i<length;i++) {
+                width += (int)Math.ceil(widths[i]);
+            }
+        }
+        return width;
+    }
+
+
+    public void setOPtions(boolean isOptions) {
+        this.mIsOptions = isOptions;
+    }
+
+    public void setTextselectedInColor (int textselectedInColor) {
+        this.mTextselectedInColor = textselectedInColor;
+        mTextPaintIn.setColor(mTextselectedInColor);
+    }
+
+    public void setTextSelectedOutColor (int textSelectedOutColor) {
+        this.mTextSelectedOutColor = textSelectedOutColor;
+        mTextPaintOut.setColor(mTextSelectedOutColor);
+    }
+
+
+    public void setTextOffset(int offset) {
+        this.mTextOffset = offset;
+        mTextPaintIn.setTextScaleX(1.0f);
+    }
+
+    public void setDividerLineColor(int dividerLineColor) {
+        this.mDividerLineColor = dividerLineColor;
+        mPaintIndicator.setColor(mDividerLineColor);
+    }
+
+    public void setDividerType(DividerType dividerType) {
+        this.mDividerType = dividerType;
+    }
+
+
+
 
     //if loop is true set cycle scroll or not
     public void setLoop(boolean loop) {
