@@ -6,11 +6,9 @@
         <attr name="border_width" format="dimension" />
         <attr name="ball_color" format="color" />
 
-        <attr name="view_width" format="dimension" />
-        <attr name="view_height" format="dimension" />
-        
         <attr name="title_size" format="dimension" />
         <attr name="title_color" format="color" />
+        <attr name="progress_color" format="color" />
         <attr name="title_center" format="string" />
 
         <attr name="start_angle" format="integer" />

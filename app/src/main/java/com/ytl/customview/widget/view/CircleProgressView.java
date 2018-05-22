@@ -1,7 +1,5 @@
 package com.ytl.customview.widget.view;
 
-import android.animation.Animator;
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -16,6 +14,7 @@ import android.view.View;
 
 import com.ytl.customview.R;
 import com.ytl.customview.util.Utils;
+import com.ytl.customview.widget.listener.OnProgressListener;
 
 /**
  * package:com.ytl.customview.widget.view
@@ -25,9 +24,10 @@ import com.ytl.customview.util.Utils;
  */
 
 
-public class CircleProgressView extends View implements View.OnClickListener {
+public class CircleProgressView extends View implements View.OnClickListener{
 
     private Context mContext;
+
     private Paint mTextPaint;
     private Paint mBackgroundPaint;
     private Paint mBorderPaint;
@@ -39,16 +39,16 @@ public class CircleProgressView extends View implements View.OnClickListener {
     private PathMeasure mPathMeasure;
 
     private float mRadius = 0;
-    private float mTextSize = 12f;
-    private int mTextColor = Color.WHITE;
+    private float mTextSize = 18f;
+    private int mTextColor = Color.RED;
     private int mBorderColor = Color.BLUE;
-    private int mBackgroundColor= Color.DKGRAY;
+    private int mBackgroundColor= Color.WHITE;
+    private int mProgressColor = Color.MAGENTA;
     private int mBallColor = Color.GREEN;
-    private float mBorderWidth = 4f;
+    private float mBorderWidth = 10f;
     private boolean mIsBall;
-    private float mBallWidth;
+    private float mBallWidth = 10f;
 
-    private ValueAnimator mAnimator;
     private int mProgress;
     private float mCurrentValue = 0;
 
@@ -61,8 +61,10 @@ public class CircleProgressView extends View implements View.OnClickListener {
     private int mStartAngle = 0;
     private float[] mPos;
     private float[] mTan;
-    private String mDisplayFormat = "%f%%";
+    private String mDisplayFormat = "%.2f%%";
     private String mDisplayText;
+
+    private OnProgressListener mProgressListener;
 
 
     public CircleProgressView(Context context) {
@@ -88,15 +90,13 @@ public class CircleProgressView extends View implements View.OnClickListener {
         mBallColor = attribute.getColor(R.styleable.CircleProgressView_ball_color, mBallColor);
         mBorderColor = attribute.getColor(R.styleable.CircleProgressView_border_color, mBorderColor);
         mTextColor = attribute.getColor(R.styleable.CircleProgressView_title_color, mTextColor);
+        mProgressColor = attribute.getColor(R.styleable.CircleProgressView_progress_color,mProgressColor);
         mTextSize = attribute.getDimension(R.styleable.CircleProgressView_title_size, Utils.dp2px(mContext,mTextSize));
         mBorderWidth = attribute.getInt(R.styleable.CircleProgressView_border_width, Utils.dp2px(mContext,mBorderWidth));
         mIsBall = attribute.getBoolean(R.styleable.CircleProgressView_isBall,true);
 
-
-        mWidth = (int) attribute.getDimension(R.styleable.CircleProgressView_view_width, mWidth);
-        mHeight = (int) attribute.getDimension(R.styleable.CircleProgressView_view_height, mHeight);
-
         mStartAngle = (attribute.getInteger(R.styleable.CircleProgressView_start_angle,mStartAngle)+270) % 360;
+        attribute.recycle();
         mSrcPath = new Path();
         mPathMeasure = new PathMeasure();
         mDstPath = new Path();
@@ -105,6 +105,13 @@ public class CircleProgressView extends View implements View.OnClickListener {
         mTan = new float[2];
         initPaint();
         setOnClickListener(this);
+        mProgressListener = new OnProgressListener() {
+            @Override
+            public void onProgressChanged(int progress) {
+                mCurrentValue = progress;
+            }
+        };
+
     }
 
     public void initPaint() {
@@ -127,9 +134,11 @@ public class CircleProgressView extends View implements View.OnClickListener {
         mBallPaint.setStyle(Paint.Style.FILL);
         mBallPaint.setColor(mBallColor);
 
-        mProgressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mProgressPaint.setStyle(Paint.Style.FILL);
-        mProgressPaint.setColor(Color.YELLOW);
+        mProgressPaint = new Paint();
+        mProgressPaint.setAntiAlias(true);
+        mProgressPaint.setStyle(Paint.Style.STROKE);
+        mProgressPaint.setStrokeWidth(mBorderWidth-2);
+        mProgressPaint.setColor(mProgressColor);
     }
 
     @Override
@@ -188,23 +197,23 @@ public class CircleProgressView extends View implements View.OnClickListener {
         canvas.translate(getWidth()>>1,getHeight()>>1);
         canvas.rotate(mStartAngle);
         canvas.drawCircle(0,0,mRadius,mBackgroundPaint);
-        canvas.drawPath(mSrcPath,mBackgroundPaint);
+        canvas.drawPath(mSrcPath,mBorderPaint);
 
         mDstPath.reset();
         mDstPath.lineTo(0,0);
 
-        float stop = mLength * mCurrentValue;
+        float stop = mLength * (mCurrentValue/100);
         mPathMeasure.getSegment(0,stop,mDstPath,true);
 
         canvas.drawPath(mDstPath,mProgressPaint);
 
-        mPathMeasure.getPosTan(mCurrentValue * mLength,mPos,mTan);
+        mPathMeasure.getPosTan((mCurrentValue/100) * mLength,mPos,mTan);
         if (mIsBall) {
             canvas.drawCircle(mPos[0], mPos[1], mBorderWidth,mBallPaint);
         }
         if (mDisplayFormat.contains("%")) {
 
-            mDisplayText = String.format(mDisplayFormat,(1 - mCurrentValue) / 1000);
+            mDisplayText = String.format(mDisplayFormat,mCurrentValue);
         }
 
         if (!TextUtils.isEmpty(mDisplayText)) {
@@ -215,47 +224,6 @@ public class CircleProgressView extends View implements View.OnClickListener {
 
         canvas.restore();
     }
-
-    public void initAnimator() {
-        if (null != mAnimator) {
-            mAnimator.setDuration(mProgress);
-            return;
-        }
-        mAnimator = ValueAnimator.ofFloat(0, 1);
-        mAnimator.setDuration(mProgress);
-        mAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator valueAnimator) {
-                mCurrentValue = (float) valueAnimator.getAnimatedValue();
-                invalidate();
-
-            }
-        });
-
-        mAnimator.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animator) {
-
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animator) {
-
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animator) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animator) {
-
-            }
-        });
-
-    }
-
 
     @Override
     public void onClick(View view) {
@@ -305,5 +273,17 @@ public class CircleProgressView extends View implements View.OnClickListener {
         startAngle = (startAngle + 270) % 360;
         mStartAngle = startAngle;
         invalidate();
+    }
+
+
+    public void setProgress(int progress) {
+        if (progress != mProgress) {
+            mProgress = progress;
+            mProgressListener.onProgressChanged(mProgress);
+            postInvalidate();
+        }else {
+            return;
+        }
+
     }
 }
