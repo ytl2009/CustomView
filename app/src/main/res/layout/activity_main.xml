@@ -53,7 +53,6 @@ tools:context="com.ytl.customview.MainActivity">
         app:progress_text_size="14dp"
         app:progress_bg_height="3dp"
         app:progress_height="3dp"
-        app:progress_text_visibility="visible"
         tools:layout_editor_absoluteX="8dp"/>
 
 </android.support.constraint.ConstraintLayout>

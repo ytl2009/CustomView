@@ -48,7 +48,22 @@ public final class SmoothScrollTask extends TimerTask {
             mWheelView.cancelFuture();
             mWheelView.getHandler().sendEmptyMessage(MessageHandler.ITEM_SELECTED);
         } else {
+            mWheelView.setTotalScrollY(mWheelView.getTotalScrollY() + mRealOffset);
 
+            //这里如果不是循环模式，则点击空白位置需要回滚，不然就会出现选到－1 item的 情况
+            if (!mWheelView.isLoop()) {
+                float itemHeight = mWheelView.getItemHeight();
+                float top = (float) (-mWheelView.getInitPosition()) * itemHeight;
+                float bottom = (float) (mWheelView.getItemCount() - 1 - mWheelView.getInitPosition()) * itemHeight;
+                if (mWheelView.getTotalScrollY() <= top || mWheelView.getTotalScrollY() >= bottom) {
+                    mWheelView.setTotalScrollY(mWheelView.getTotalScrollY() - mRealOffset);
+                    mWheelView.cancelFuture();
+                    mWheelView.getHandler().sendEmptyMessage(MessageHandler.ITEM_SELECTED);
+                    return;
+                }
+            }
+            mWheelView.getHandler().sendEmptyMessage(MessageHandler.INVALIDATE_WHEEL_VIEW);
+            mRealTotalOffset = mRealTotalOffset - mRealOffset;
         }
 
     }

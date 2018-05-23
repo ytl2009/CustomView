@@ -33,11 +33,11 @@ public class MessageHandler extends Handler {
 
                 break;
             case SMOOTH_FLING:
+                mWheelView.smoothScroll(WheelView.ActionEvent.FLING);
 
                 break;
             case ITEM_SELECTED:
-
-
+                mWheelView.onItemSelected();
                 break;
         }
     }

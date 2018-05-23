@@ -4,17 +4,17 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.text.TextPaint;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 
 import com.ytl.customview.R;
@@ -32,13 +32,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static android.R.attr.radius;
+
 /**
- * TODO: document your custom view class.
+ * package:com.ytl.customview.widget.timer
+ * description:
+ * author: ytl
+ * date:18.5.12  8:48.
  */
 public class WheelView extends View {
 
     public boolean mIsDebug = true;
-
     private static final String TAG = WheelView.class.getSimpleName();
     private float mTextSize;
 
@@ -51,8 +55,6 @@ public class WheelView extends View {
     }
 
     private DividerType mDividerType;
-
-    private String mExampleString = "\u661F\u671F";
 
     private Context mContext;
     private Handler mHandler;
@@ -67,7 +69,6 @@ public class WheelView extends View {
     public boolean mIsOptions = true;
     public boolean mIsCenterLabel = true;
 
-
     private int mTextselectedInColor;
     private int mTextSelectedOutColor;
     private int mDividerLineColor;
@@ -75,10 +76,6 @@ public class WheelView extends View {
     public  boolean mIsLoop = true;
 
     private int mGravity = Gravity.CENTER;
-
-    private int mExampleColor = Color.RED; // TODO: use a default from R.color...
-    private float mExampleDimension = 0; // TODO: use a default from R.dimen...
-    private Drawable mExampleDrawable;
 
     private String mLabel;// unit text of item selected
 
@@ -97,7 +94,7 @@ public class WheelView extends View {
     private float mLabelTextY;
 
     // the total scroll y
-    private int mTotalScollY;
+    private float mTotalScrollY;
     // the init position
     private int initPosition;
 
@@ -193,20 +190,10 @@ public class WheelView extends View {
         mGravity = a.getInt(R.styleable.WheelView_gravity,Gravity.CENTER);
         // Use getDimensionPixelSize or getDimensionPixelOffset when dealing with
         // values that should fall on pixel boundaries.
-
-        if (a.hasValue(R.styleable.WheelView_exampleDrawable)) {
-            mExampleDrawable = a.getDrawable(
-                    R.styleable.WheelView_exampleDrawable);
-            mExampleDrawable.setCallback(this);
-        }
-
         a.recycle();
 
         setLineSpacingMultiplier();
         initWheelView(getContext());
-
-        // Update TextPaint and text measurements from attributes
-        invalidateTextPaintAndMeasurements();
     }
 
 
@@ -220,10 +207,9 @@ public class WheelView extends View {
         mGestureDetector.setIsLongpressEnabled(false);
         mIsLoop = true;
 
-        mTotalScollY = 0;
+        mTotalScrollY = 0;
         mSelectedPosition = -1;
         initPaints();
-
     }
 
 
@@ -252,18 +238,6 @@ public class WheelView extends View {
 
     }
 
-    private void invalidateTextPaintAndMeasurements() {
-        mTextPaintIn.setTextSize(mTextSize);
-        mTextPaintIn.setColor(mTextselectedInColor);
-        mTextWidth = mTextPaintIn.measureText(mExampleString);
-
-        Paint.FontMetrics fontMetrics = mTextPaintIn.getFontMetrics();
-        mTextHeight = fontMetrics.bottom;
-
-        mTextPaintOut.setTextSize(mTextSize);
-        mTextPaintOut.setColor(mTextSelectedOutColor);
-
-    }
 
 
     /*
@@ -350,7 +324,7 @@ public class WheelView extends View {
     }
 
     /*
-    * calpulate the width and height by content
+    * calculate the width and height by content
     *
     * */
     private void measureTextWidthAndHeight(){
@@ -416,7 +390,7 @@ public class WheelView extends View {
     public void smoothScroll(ActionEvent actionEvent){
         cancelFuture();
         if (actionEvent== ActionEvent.FLING || actionEvent == ActionEvent.DRAGGLE) {
-            mOffset =  (int) ((mTotalScollY % mItemHeight + mItemHeight) % mItemHeight);
+            mOffset =  (int) ((mTotalScrollY % mItemHeight + mItemHeight) % mItemHeight);
             if (mOffset > mItemHeight / 2.0F) {
                 mOffset = (int) (mItemHeight - mOffset);
             } else {
@@ -436,8 +410,6 @@ public class WheelView extends View {
                 0,10,TimeUnit.MILLISECONDS);
 
     }
-
-
 
 
     public int getItemCount() {
@@ -531,8 +503,12 @@ public class WheelView extends View {
     public void setSelectedPosition(int selectedPosition) {
         mSelectedPosition = selectedPosition;
         initPosition = selectedPosition;
-        mTotalScollY = 0;
+        mTotalScrollY = 0;
         invalidate();
+    }
+
+    public boolean isOptions() {
+        return mIsOptions;
     }
 
 
@@ -557,6 +533,41 @@ public class WheelView extends View {
         return mSelectedPosition;
     }
 
+    public boolean isLoop() {
+        return mIsLoop;
+    }
+
+    public float getTotalScrollY() {
+        return mTotalScrollY;
+    }
+
+
+    public void setTotalScrollY(float totalScollY) {
+        mTotalScrollY = totalScollY;
+    }
+
+    public float getItemHeight() {
+        return mItemHeight;
+    }
+
+
+    public void setItemHeight(float itemHeight) {
+        mItemHeight = itemHeight;
+    }
+
+    public int getInitPosition() {
+        return initPosition;
+    }
+
+
+    public void setInitPosition(int initPosition) {
+        this.initPosition = initPosition;
+    }
+
+    @Override
+    public Handler getHandler() {
+        return mHandler;
+    }
 
     public void onItemSelected() {
         if (mOnItemSelectedListenter != null) {
@@ -588,7 +599,7 @@ public class WheelView extends View {
 
         Object visibles[] = new Object[mVisibleItemCount];
 
-        mChangedOffset = (int) (mTotalScollY / mItemHeight);
+        mChangedOffset = (int) (mTotalScrollY / mItemHeight);
 
         try {
             mPreCurrentPosition = initPosition + mChangedOffset % mAdapter.getItemCount();
@@ -612,107 +623,296 @@ public class WheelView extends View {
             }
         }
 
-        float itemOffsetHeight = mTotalScollY % mItemHeight;
+        float itemOffsetHeight = mTotalScrollY % mItemHeight;
 
-        // allocations per draw cycle.
-        int paddingLeft = getPaddingLeft();
-        int paddingTop = getPaddingTop();
-        int paddingRight = getPaddingRight();
-        int paddingBottom = getPaddingBottom();
+        int counter = 0;
+        while (counter < mVisibleItemCount) {
 
-        int contentWidth = getWidth() - paddingLeft - paddingRight;
-        int contentHeight = getHeight() - paddingTop - paddingBottom;
+            int index = mPreCurrentPosition - (mVisibleItemCount / 2 - counter);//索引值，即当前在控件中间的item看作数据源的中间，计算出相对源数据源的index值
+            if (mIsLoop) { //判断是否循环，如果是循环数据源也使用相对循环的position获取对应的item值，如果不是循环则超出数据源范围使用""空白字符串填充，在界面上形成空白无数据的item项
 
-        // Draw the text.
-        canvas.drawText(mExampleString,
-                paddingLeft + (contentWidth - mTextWidth) / 2,
-                paddingTop + (contentHeight + mTextHeight) / 2,
-                mTextPaintIn);
+                index = getLoopMappingIndex(index);
+                visibles[counter] = mAdapter.getItem(index);
+            } else if (index < 0) {
+                visibles[counter] = "";
+            } else if (index > mAdapter.getItemCount() - 1) {
+                visibles[counter] = "";
+            } else {
+                visibles[counter] = mAdapter.getItem(index);
+            }
 
-        // Draw the example drawable on top of the text.
-        if (mExampleDrawable != null) {
-            mExampleDrawable.setBounds(paddingLeft, paddingTop,
-                    paddingLeft + contentWidth, paddingTop + contentHeight);
-            mExampleDrawable.draw(canvas);
+            counter ++;
+        }
+
+        //绘制中间两条横线
+        if (mDividerType == DividerType.WRAP) {
+            float startX,endX;
+
+            if (TextUtils.isEmpty(mLabel)) {//无label
+                startX = (mWheelViewWidth - mMaxTextWidth) / 2 - 12;
+            } else {
+                startX = (mWheelViewWidth - mMaxTextWidth) / 4 - 12;
+            }
+
+            if (startX <= 0) {//超出宽度
+                startX = 10;
+            }
+            endX = mWheelViewWidth - startX;
+            canvas.drawLine(startX,mFirstLineY,endX,mFirstLineY,mPaintIndicator);
+            canvas.drawLine(startX,mSecondLineY,endX,mSecondLineY,mPaintIndicator);
+        } else {
+            canvas.drawLine(0,mFirstLineY,mWheelViewWidth,mFirstLineY,mPaintIndicator);
+            canvas.drawLine(0,mSecondLineY,mWheelViewWidth,mSecondLineY,mPaintIndicator);
+        }
+
+        if (!TextUtils.isEmpty(mLabel) && mIsCenterLabel) {
+            int labelStart = mWheelViewWidth - getTextWidth(mTextPaintIn,mLabel);
+            canvas.drawText(mLabel,labelStart - CENTER_CONTENT_OFFSET,mLabelTextY,mTextPaintIn);
+        }
+
+        counter = 0;
+
+        while (counter < mVisibleItemCount) {
+            canvas.save();
+            // 弧长 L = itemHeight * counter - itemHeightOffset
+            // 求弧度 α = L / r  (弧长/半径) [0,π]
+            double radian = ((mItemHeight * counter - itemOffsetHeight)) / radius;
+            // 弧度转换成角度(把半圆以Y轴为轴心向右转90度，使其处于第一象限及第四象限
+            // angle [-90°,90°]
+            float angle = (float) (90D - (radian / Math.PI) * 180D);//item第一项,从90度开始，逐渐递减到 -90度
+
+            // 计算取值可能有细微偏差，保证负90°到90°以外的不绘制
+            if (angle >= 90F || angle <= -90F) {
+                canvas.restore();
+            } else {
+                // 根据当前角度计算出偏差系数，用以在绘制时控制文字的 水平移动 透明度 倾斜程度
+                float offsetCoefficient = (float) Math.pow(Math.abs(angle) / 90f, 2.2);
+                //获取内容文字
+                String contentText;
+
+                //如果是label每项都显示的模式，并且item内容不为空、label 也不为空
+                if (!mIsCenterLabel && !TextUtils.isEmpty(mLabel) && !TextUtils.isEmpty(getContentText(visibles[counter]))) {
+                    contentText = getContentText(visibles[counter]) + mLabel;
+                } else {
+                    contentText = getContentText(visibles[counter]);
+                }
+
+                reMeasureTextSize(contentText);
+                //计算开始绘制的位置
+                measuredCenterContentStart(contentText);
+                measuredOutContentStart(contentText);
+                float translateY = (float) (radius - Math.cos(radian) * radius - (Math.sin(radian) * mMaxTextHeight) / 2D);
+                //根据Math.sin(radian)来更改canvas坐标系原点，然后缩放画布，使得文字高度进行缩放，形成弧形3d视觉差
+                canvas.translate(0.0F, translateY);
+
+                if (translateY <= mFirstLineY && mMaxTextHeight + translateY >= mFirstLineY) {
+                    // 条目经过第一条线
+                    canvas.save();
+                    canvas.clipRect(0, 0, mWheelViewWidth, mFirstLineY - translateY);
+                    canvas.scale(1.0F, (float) Math.sin(radian) * SCALECONTENT);
+                    canvas.drawText(contentText, mDrawOutTextStart, mMaxTextHeight, mTextPaintOut);
+                    canvas.restore();
+                    canvas.save();
+                    canvas.clipRect(0, mFirstLineY - translateY, mWheelViewWidth, (int) (mItemHeight));
+                    canvas.scale(1.0F, (float) Math.sin(radian) * 1.0F);
+                    canvas.drawText(contentText, mDrawCenterTextStart, mMaxTextHeight - CENTER_CONTENT_OFFSET, mTextPaintIn);
+                    canvas.restore();
+                } else if (translateY <= mSecondLineY && mMaxTextHeight + translateY >= mSecondLineY) {
+                    // 条目经过第二条线
+                    canvas.save();
+                    canvas.clipRect(0, 0, mWheelViewWidth, mSecondLineY - translateY);
+                    canvas.scale(1.0F, (float) Math.sin(radian) * 1.0F);
+                    canvas.drawText(contentText, mDrawCenterTextStart, mMaxTextHeight - CENTER_CONTENT_OFFSET, mTextPaintIn);
+                    canvas.restore();
+                    canvas.save();
+                    canvas.clipRect(0, mSecondLineY - translateY, mWheelViewWidth, (int) (mItemHeight));
+                    canvas.scale(1.0F, (float) Math.sin(radian) * SCALECONTENT);
+                    canvas.drawText(contentText, mDrawOutTextStart, mMaxTextHeight, mTextPaintOut);
+                    canvas.restore();
+                } else if (translateY >= mFirstLineY && mMaxTextHeight + translateY <= mSecondLineY) {
+                    // 中间条目
+                    canvas.clipRect(0, 0, mWheelViewWidth, mMaxTextHeight);
+                    //让文字居中
+                    float Y = mMaxTextHeight - CENTER_CONTENT_OFFSET;//因为圆弧角换算的向下取值，导致角度稍微有点偏差，加上画笔的基线会偏上，因此需要偏移量修正一下
+                    canvas.drawText(contentText, mDrawCenterTextStart, Y, mTextPaintIn);
+
+                    //设置选中项
+                    mSelectedPosition = mPreCurrentPosition - (mVisibleItemCount / 2 - counter);
+                } else {
+                    // 其他条目
+                    canvas.save();
+                    canvas.clipRect(0, 0, mWheelViewWidth, (int) (mItemHeight));
+                    canvas.scale(1.0F, (float) Math.sin(radian) * SCALECONTENT);
+                    // 控制文字倾斜角度
+                    mTextPaintOut.setTextSkewX((mTextOffset == 0 ? 0 : (mTextOffset > 0 ? 1 : -1)) * (angle > 0 ? -1 : 1) * DEFAULT_TEXT_TRAGET_SKEWX * offsetCoefficient);
+                    // 控制透明度
+                    mTextPaintOut.setAlpha((int) ((1 - offsetCoefficient) * 255));
+                    // 控制文字水平偏移距离
+                    canvas.drawText(contentText, mDrawOutTextStart + mTextOffset * offsetCoefficient, mMaxTextHeight, mTextPaintOut);
+                    canvas.restore();
+                }
+                canvas.restore();
+                mTextPaintIn.setTextSize(mTextSize);
+            }
+            counter++;
+        }
+
+    }
+
+    /**
+     * reset the size of the text Let it can fully display
+     *
+     * @param content item text content.
+     */
+    private void reMeasureTextSize(String content) {
+        Rect rect = new Rect();
+        mTextPaintIn.getTextBounds(content,0,content.length(),rect);
+        int width = rect.width();
+        int size = (int) mTextSize;
+        while (width > mWheelViewWidth) {
+            size --;
+            mTextPaintIn.setTextSize(size);
+            mTextPaintIn.getTextBounds(content,0,content.length(),rect);
+            width = rect.width();
+        }
+        mTextPaintOut.setTextSize(size);
+    }
+
+
+    private void measuredCenterContentStart(String content) {
+        Rect rect = new Rect();
+        mTextPaintIn.getTextBounds(content, 0, content.length(), rect);
+        switch (mGravity) {
+            case Gravity.CENTER://显示内容居中
+                if (mIsOptions || mLabel == null || mLabel.equals("") || !mIsCenterLabel) {
+                    mDrawCenterTextStart = (int) ((mWheelViewWidth - rect.width()) * 0.5);
+                } else {//只显示中间label时，时间选择器内容偏左一点，留出空间绘制单位标签
+                    mDrawCenterTextStart = (int) ((mWheelViewWidth - rect.width()) * 0.25);
+                }
+                break;
+            case Gravity.LEFT:
+                mDrawCenterTextStart = 0;
+                break;
+            case Gravity.RIGHT://添加偏移量
+                mDrawCenterTextStart = mWheelViewWidth - rect.width() - (int) CENTER_CONTENT_OFFSET;
+                break;
         }
     }
 
-    /**
-     * Gets the example string attribute value.
-     *
-     * @return The example string attribute value.
-     */
-    public String getExampleString() {
-        return mExampleString;
+
+    private void measuredOutContentStart(String content) {
+        Rect rect = new Rect();
+        mTextPaintOut.getTextBounds(content,0,content.length(),rect);
+        switch (mGravity) {
+            case Gravity.CENTER:
+                if (mIsOptions || mLabel == null || mLabel == "" || !mIsCenterLabel) {
+                    mDrawOutTextStart = (int) ((mWheelViewWidth - rect.width()) * 0.5);
+                } else {
+                    mDrawOutTextStart = (int) ((mWheelViewWidth - rect.width()) * 0.25);
+                }
+                break;
+            case Gravity.LEFT:
+                mDrawOutTextStart = 0;
+                break;
+            case Gravity.RIGHT:
+                mDrawOutTextStart = (int) (mWheelViewWidth - rect.width() - CENTER_CONTENT_OFFSET);
+                break;
+        }
+
     }
 
-    /**
-     * Sets the view's example string attribute value. In the example view, this string
-     * is the text to draw.
-     *
-     * @param exampleString The example string attribute value to use.
-     */
-    public void setExampleString(String exampleString) {
-        mExampleString = exampleString;
-        invalidateTextPaintAndMeasurements();
+
+
+
+    //递归计算出对应的index
+    private int getLoopMappingIndex(int index) {
+        if (index < 0) {
+            index = index + mAdapter.getItemCount();
+            index = getLoopMappingIndex(index);
+        } else if (index > mAdapter.getItemCount() - 1) {
+            index = index - mAdapter.getItemCount();
+            index = getLoopMappingIndex(index);
+        }
+        return index;
     }
 
-    /**
-     * Gets the example color attribute value.
-     *
-     * @return The example color attribute value.
-     */
-    public int getExampleColor() {
-        return mExampleColor;
-    }
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        boolean eventConsumed = mGestureDetector.onTouchEvent(event);
+        boolean isIgnore = false;
 
-    /**
-     * Sets the view's example color attribute value. In the example view, this color
-     * is the font color.
-     *
-     * @param exampleColor The example color attribute value to use.
-     */
-    public void setExampleColor(int exampleColor) {
-        mExampleColor = exampleColor;
-        invalidateTextPaintAndMeasurements();
-    }
+        float top = - initPosition * mItemHeight;
+        float bottom = (mAdapter.getItemCount() - 1 - initPosition) * mItemHeight;
+        float ratio = 0.25f;
 
-    /**
-     * Gets the example dimension attribute value.
-     *
-     * @return The example dimension attribute value.
-     */
-    public float getExampleDimension() {
-        return mExampleDimension;
-    }
+        switch(event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                mStartTimer = System.currentTimeMillis();
+                cancelFuture();
+                mPreviousY = event.getRawY();
+                break;
+            case MotionEvent.ACTION_UP:
 
-    /**
-     * Sets the view's example dimension attribute value. In the example view, this dimension
-     * is the font size.
-     *
-     * @param exampleDimension The example dimension attribute value to use.
-     */
-    public void setExampleDimension(float exampleDimension) {
-        mExampleDimension = exampleDimension;
-        invalidateTextPaintAndMeasurements();
-    }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float dy = mPreviousY - event.getRawY();
+                mPreviousY = event.getRawY();
+                mTotalScrollY = mTotalScrollY + dy;
 
-    /**
-     * Gets the example drawable attribute value.
-     *
-     * @return The example drawable attribute value.
-     */
-    public Drawable getExampleDrawable() {
-        return mExampleDrawable;
-    }
+                // 非循环模式下，边界处理。
+                if (!mIsLoop) {
+                    if ((mTotalScrollY - mItemHeight *  ratio< top && dy < 0)
+                            || (mTotalScrollY + mItemHeight * ratio > bottom && dy > 0)) {
+                        //快滑动到边界了，设置已滑动到边界的标志
+                        mTotalScrollY -= dy;
+                        isIgnore = true;
+                    }/* else if (totalScrollY + itemHeight * ratio > bottom && dy > 0) {
+                        totalScrollY -= dy;
+                        isIgnore = true;
+                    } */else {
+                        isIgnore = false;
+                    }
+                }
+                break;
+            default:
+                if (!eventConsumed) {//未消费掉事件
 
-    /**
-     * Sets the view's example drawable attribute value. In the example view, this drawable is
-     * drawn above the text.
-     *
-     * @param exampleDrawable The example drawable attribute value to use.
-     */
-    public void setExampleDrawable(Drawable exampleDrawable) {
-        mExampleDrawable = exampleDrawable;
+                    /**
+                     *@describe <关于弧长的计算>
+                     *
+                     * 弧长公式： L = α*R
+                     * 反余弦公式：arccos(cosα) = α
+                     * 由于之前是有顺时针偏移90度，
+                     * 所以实际弧度范围α2的值 ：α2 = π/2-α    （α=[0,π] α2 = [-π/2,π/2]）
+                     * 根据正弦余弦转换公式 cosα = sin(π/2-α)
+                     * 代入，得： cosα = sin(π/2-α) = sinα2 = (R - y) / R
+                     * 所以弧长 L = arccos(cosα)*R = arccos((R - y) / R)*R
+                     */
+
+                    float y = event.getY();
+                    double L = Math.acos((radius - y) / radius) * radius;
+                    //item0 有一半是在不可见区域，所以需要加上 itemHeight / 2
+                    int circlePosition = (int) ((L + mItemHeight / 2) / mItemHeight);
+                    float extraOffset = (mTotalScrollY % mItemHeight + mItemHeight) % mItemHeight;
+                    //已滑动的弧长值
+                    mOffset = (int) ((circlePosition - mVisibleItemCount / 2) * mItemHeight - extraOffset);
+
+                    if ((System.currentTimeMillis() - mStartTimer) > 120) {
+                        // 处理拖拽事件
+                        smoothScroll(ActionEvent.DRAGGLE);
+                    } else {
+                        // 处理条目点击事件
+                        smoothScroll(ActionEvent.CLICK);
+                    }
+                }
+
+                break;
+
+        }
+        if (!isIgnore && event.getAction() != MotionEvent.ACTION_DOWN) {
+            invalidate();
+        }
+
+        return true;
     }
 }
