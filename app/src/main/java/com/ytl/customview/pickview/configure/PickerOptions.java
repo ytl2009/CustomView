@@ -43,7 +43,7 @@ public class PickerOptions {
 
     public String mLabel1,mLabel2,mLabel3;
     public int mOptions1,mOptions2,mOptions3;
-    public int mXOffeset1,mXOffset2,mXOffset3;
+    public int mXOffset1,mXOffset2,mXOffset3;
 
     public boolean mIsCyclic1 = false;
     public boolean mIsCyclic2 = false;

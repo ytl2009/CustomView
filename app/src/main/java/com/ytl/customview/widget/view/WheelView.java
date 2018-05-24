@@ -264,7 +264,7 @@ public class WheelView extends View {
     * set the Line space distance
     *
     * */
-    private void setLineSpacingMultiplier(){
+    public void setLineSpacingMultiplier(){
         if (mDividerLineMultiplier < 1.0f) {
             mDividerLineMultiplier = 1.0f;
         } else if (mDividerLineMultiplier >4.0f) {
@@ -511,6 +511,10 @@ public class WheelView extends View {
         return mIsOptions;
     }
 
+    public void setDividerLineMultiplier(float dividerLineMultiplier) {
+        mDividerLineMultiplier = dividerLineMultiplier;
+        setLineSpacingMultiplier();
+    }
 
     public void setOnItemSelectedListenter(OnItemSelectedListenter onItemSelectedListenter) {
         mOnItemSelectedListenter = onItemSelectedListenter;
